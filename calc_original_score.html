@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>新評価手法 スコア計算ツール</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .container {
+      max-width: 1200px;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: #4f46e5;
+      color: white;
+      padding: 16px 24px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      font-size: 0.8rem;
+      opacity: 0.95;
+      line-height: 1.4;
+    }
+    
+    .content {
+      padding: 16px 24px 20px;
+    }
+    
+    .score-panel {
+      background: #f093fb;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: all 0.3s ease;
+    }
+    
+    .score-panel.Critical {
+      background: #dc2626;
+    }
+    
+    .score-panel.High {
+      background: #ea580c;
+    }
+    
+    .score-panel.Medium {
+      background: #f59e0b;
+    }
+    
+    .score-panel.Low {
+      background: #10b981;
+    }
+    
+    .score-panel.None {
+      background: #6b7280;
+    }
+    
+    .score-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .score-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: white;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    
+    .score-label {
+      font-size: 1.1rem;
+      color: white;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .score-details {
+      color: white;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      text-align: right;
+      flex: 1;
+      min-width: 220px;
+    }
+    
+    .score-details div {
+      opacity: 0.95;
+    }
+    
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .custom-metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    
+    @media (max-width: 900px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 600px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .custom-metrics-grid {
+        grid-template-columns: 1fr;
+      }
+      .content {
+        padding: 16px;
+      }
+      .header {
+        padding: 16px;
+      }
+      .score-panel {
+        flex-direction: column;
+        text-align: center;
+      }
+      .score-details {
+        text-align: center;
+      }
+    }
+    
+    fieldset {
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 8px;
+      background: #f9fafb;
+      transition: all 0.2s ease;
+    }
+    
+    fieldset:hover {
+      border-color: #4f46e5;
+      background: #fefefe;
+    }
+    
+    legend {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #374151;
+      padding: 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .metric-caption {
+      font-size: 0.65rem;
+      color: #6b7280;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+    
+    .options-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    
+    .option {
+      display: inline-block;
+    }
+    
+    .option input[type="radio"] {
+      display: none;
+    }
+    
+    .option label {
+      display: inline-block;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid #d1d5db;
+      font-weight: 500;
+      color: #374151;
+      background: white;
+      white-space: nowrap;
+    }
+    
+    .option label:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+      transform: translateY(-1px);
+    }
+    
+    .option input[type="radio"]:checked + label {
+      background: #4f46e5;
+      color: white;
+      border-color: #4f46e5;
+      box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+      transform: translateY(-1px);
+    }
+    
+    .error {
+      color: #dc2626;
+      font-size: 0.85rem;
+      padding: 12px;
+      background: #fee2e2;
+      border-radius: 8px;
+      margin-top: 16px;
+      display: none;
+    }
+    
+    .error.show {
+      display: block;
+    }
+    
+    .footer-note {
+      font-size: 0.7rem;
+      color: #6b7280;
+      line-height: 1.5;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border-left: 4px solid #4f46e5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛡️ 新評価手法 スコア計算</h1>
+      <p>AC/PR/UI + C/I/A + SI/SV/LR による評価</p>
+    </div>
+    <div class="content">
+      <div class="score-panel" id="score-panel">
+        <div class="score-main">
+          <div class="score-value" id="score-value">- : -</div>
+          <div class="score-label" id="score-label">-</div>
+        </div>
+        <div class="score-details" id="score-details">
+          メトリクスを選択すると「最大値:合計値」が自動計算されます
+        </div>
+      </div>
+      
+      <form id="new-score-form">
+        <div class="metrics-grid">
+          <!-- AC -->
+          <fieldset>
+            <legend>AC - Attack Complexity</legend>
+            <div class="metric-caption">攻撃の難易度（易しいほどスコア高）</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="AC" value="L" id="AC_L" />
+                <label for="AC_L">Low（容易）</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="AC" value="M" id="AC_M" />
+                <label for="AC_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="AC" value="H" id="AC_H" checked />
+                <label for="AC_H">High（困難）</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- PR -->
+          <fieldset>
+            <legend>PR - Privileges Required</legend>
+            <div class="metric-caption">必要権限（少ないほどスコア高）</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="PR" value="L" id="PR_L" />
+                <label for="PR_L">Low（ほぼ不要）</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="PR" value="M" id="PR_M" />
+                <label for="PR_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="PR" value="H" id="PR_H" checked />
+                <label for="PR_H">High（高権限）</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- UI -->
+          <fieldset>
+            <legend>UI - User Interaction</legend>
+            <div class="metric-caption">ユーザー関与（少ないほどスコア高）</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="UI" value="L" id="UI_L" />
+                <label for="UI_L">Low（ほぼ不要）</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="UI" value="M" id="UI_M" />
+                <label for="UI_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="UI" value="H" id="UI_H" checked />
+                <label for="UI_H">High（複雑な操作）</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- C -->
+          <fieldset>
+            <legend>C - Confidentiality</legend>
+            <div class="metric-caption">機密性への影響</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="C" value="L" id="C_L" checked />
+                <label for="C_L">Low</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="C" value="M" id="C_M" />
+                <label for="C_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="C" value="H" id="C_H" />
+                <label for="C_H">High</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- I -->
+          <fieldset>
+            <legend>I - Integrity</legend>
+            <div class="metric-caption">完全性への影響</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="I" value="L" id="I_L" checked />
+                <label for="I_L">Low</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="I" value="M" id="I_M" />
+                <label for="I_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="I" value="H" id="I_H" />
+                <label for="I_H">High</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- A -->
+          <fieldset>
+            <legend>A - Availability</legend>
+            <div class="metric-caption">可用性への影響</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="A" value="L" id="A_L" checked />
+                <label for="A_L">Low</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="A" value="M" id="A_M" />
+                <label for="A_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="A" value="H" id="A_H" />
+                <label for="A_H">High</label>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        
+        <div class="custom-metrics-grid">
+          <!-- 複合影響度 -->
+          <fieldset>
+            <legend>SI - Synergistic Impact</legend>
+            <div class="metric-caption">他の脆弱性との組合せリスク</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="SynergisticImpact" value="L" id="SI_L" checked />
+                <label for="SI_L">Low</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="SynergisticImpact" value="M" id="SI_M" />
+                <label for="SI_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="SynergisticImpact" value="H" id="SI_H" />
+                <label for="SI_H">High</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- サービス影響顕在度 -->
+          <fieldset>
+            <legend>SV - Service Impact</legend>
+            <div class="metric-caption">サービス運営・停止時の実影響</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="ServiceImpact" value="L" id="SM_L" checked />
+                <label for="SM_L">Low</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="ServiceImpact" value="M" id="SM_M" />
+                <label for="SM_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="ServiceImpact" value="H" id="SM_H" />
+                <label for="SM_H">High</label>
+              </div>
+            </div>
+          </fieldset>
+          
+          <!-- 法的リスク保有度 -->
+          <fieldset>
+            <legend>LR - Legal Risk</legend>
+            <div class="metric-caption">法令違反・賠償リスク</div>
+            <div class="options-wrapper">
+              <div class="option">
+                <input type="radio" name="LegalRisk" value="L" id="LR_L" checked />
+                <label for="LR_L">Low</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="LegalRisk" value="M" id="LR_M" />
+                <label for="LR_M">Medium</label>
+              </div>
+              <div class="option">
+                <input type="radio" name="LegalRisk" value="H" id="LR_H" />
+                <label for="LR_H">High</label>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        
+        <div id="error-msg" class="error"></div>
+      </form>
+      
+      <div class="footer-note">
+        📌 <strong>計算ルール:</strong><br>
+        各メトリクスをポイント化し、<strong>「最大値:合計値」</strong>として表示します。<br>
+        ・AC / PR / UI：L = 3, M = 2, H = 1（攻撃しやすいほど点数高）<br>
+        ・C / I / A / SI / SV：L = 1, M = 3, H = 5<br>
+        ・LR：L = 0, M = 2, H = 4<br>
+        最大値でインパクトの大きさを把握し、合計値で攻撃の起こりやすさ・法的リスク等を総合判断します。
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // メトリクスごとのポイント定義
+    const metricPoints = {
+      AC: { L: 3, M: 2, H: 1 },
+      PR: { L: 3, M: 2, H: 1 },
+      UI: { L: 3, M: 2, H: 1 },
+      C:  { L: 1, M: 3, H: 5 },
+      I:  { L: 1, M: 3, H: 5 },
+      A:  { L: 1, M: 3, H: 5 },
+      SynergisticImpact: { L: 1, M: 3, H: 5 },
+      ServiceImpact:     { L: 1, M: 3, H: 5 },
+      LegalRisk:         { L: 0, M: 2, H: 4 }
+    };
+    
+    const metricOrder = [
+      "AC",
+      "PR",
+      "UI",
+      "C",
+      "I",
+      "A",
+      "SynergisticImpact",
+      "ServiceImpact",
+      "LegalRisk"
+    ];
+    
+    const metricLabels = {
+      AC: "AC",
+      PR: "PR",
+      UI: "UI",
+      C:  "C",
+      I:  "I",
+      A:  "A",
+      SynergisticImpact: "SI",
+      ServiceImpact:     "SV",
+      LegalRisk:         "LR"
+    };
+    
+    function getMetricValue(name) {
+      var node = document.querySelector('input[name="' + name + '"]:checked');
+      return node ? node.value : null;
+    }
+
+    function getFinalScoreLabel(maxScore, sumScore) {
+      if (maxScore <= 1) {
+        return "Low";
+      } else if (maxScore <= 2) {
+        if (sumScore <=20) {
+          return "Low";
+        } else {
+          return "Medium";
+        }
+      } else if (maxScore <= 3) {
+        if (sumScore <=10) {
+          return "Low";
+        } else if (sumScore <=25) {
+          return "Medium";
+        }else{
+          return "High";
+        }
+      } else{
+        if (sumScore <=10) {
+          return "Low";
+        } else if (sumScore <=20) {
+          return "Medium";
+        }else if (sumScore <=25) {
+          return "High";
+        } else {
+          return "Critical";
+        }
+    }
+  }
+    
+    function recalc() {
+      var errorMsg = document.getElementById("error-msg");
+      errorMsg.textContent = "";
+      errorMsg.classList.remove("show");
+      
+      const values = {};
+      const numericList = [];
+      
+      for (const name of metricOrder) {
+        const raw = getMetricValue(name);
+        if (!raw) {
+          errorMsg.textContent = "メトリクスが選択されていません: " + name;
+          errorMsg.classList.add("show");
+          document.getElementById("score-value").textContent = "- : -";
+          document.getElementById("score-label").textContent = "-";
+          document.getElementById("score-details").innerHTML = "エラーを確認してください";
+          return;
+        }
+        const points = metricPoints[name][raw];
+        values[name] = points;
+        numericList.push(points);
+      }
+      
+      const maxScore = Math.max.apply(null, numericList);
+      const sumScore = numericList.reduce((a, b) => a + b, 0);
+      
+      // 最大値に基づくざっくりした評価クラス
+      let severityClass = "";
+      severityClass = getFinalScoreLabel(maxScore, sumScore);
+      
+      var scorePanel = document.getElementById("score-panel");
+      scorePanel.className = "score-panel " + severityClass;
+      
+      // 「最大値:合計値」を表示
+      document.getElementById("score-value").textContent = maxScore + " : " + sumScore;
+      document.getElementById("score-label").textContent = severityClass;
+      
+      // 詳細（各メトリクスのポイント一覧）
+      const detailParts = metricOrder.map(name => {
+        return metricLabels[name] + ":" + values[name];
+      });
+      
+      const detailsHtml = [
+        "<div><strong>最大値:</strong> " + maxScore + " / <strong>合計値:</strong> " + sumScore + "</div>",
+        "<div>" + detailParts.join(" | ") + "</div>"
+      ].join("");
+      
+      document.getElementById("score-details").innerHTML = detailsHtml;
+    }
+    
+    document.addEventListener("DOMContentLoaded", function () {
+      var radios = document.querySelectorAll('input[type="radio"]');
+      radios.forEach(function (r) {
+        r.addEventListener("change", recalc);
+      });
+      recalc();
+    });
+  </script>
+</body>
+</html>
